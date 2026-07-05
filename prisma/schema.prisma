@@ -8,7 +8,7 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid()) @db.Uuid
   name      String
   email     String   @unique
   password  String
@@ -21,7 +21,7 @@ model User {
 }
 
 model Product {
-  id          String    @id @default(uuid())
+  id          String    @id @default(uuid()) @db.Uuid
   name        String    @unique
   description String?
   price       Decimal   @db.Decimal(10, 2)
@@ -33,12 +33,14 @@ model Product {
 
   orderItems OrderItem[]
 
+  @@index([isDeleted])
+  @@index([name])
   @@map("products")
 }
 
 model Order {
-  id         String  @id @default(uuid())
-  userId     String  @map("user_id")
+  id         String @id @default(uuid()) @db.Uuid
+  userId     String @map("user_id") @db.Uuid
   totalPrice Decimal @db.Decimal(10, 2) @map("total_price")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
@@ -46,13 +48,14 @@ model Order {
   user  User        @relation(fields: [userId], references: [id])
   items OrderItem[]
 
+  @@index([userId])
   @@map("orders")
 }
 
 model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String  @map("order_id")
-  productId String  @map("product_id")
+  id        String  @id @default(uuid()) @db.Uuid
+  orderId   String  @map("order_id") @db.Uuid
+  productId String  @map("product_id") @db.Uuid
   quantity  Int
   price     Decimal @db.Decimal(10, 2)
   subtotal  Decimal @db.Decimal(10, 2)
@@ -62,5 +65,7 @@ model OrderItem {
   order   Order   @relation(fields: [orderId], references: [id])
   product Product @relation(fields: [productId], references: [id])
 
+  @@index([orderId])
+  @@index([productId])
   @@map("order_items")
 }

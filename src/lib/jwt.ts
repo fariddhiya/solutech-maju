@@ -1,17 +1,15 @@
 import jwt from 'jsonwebtoken';
+import { config } from './config';
+import { AuthUser } from '@/types/auth';
 
-const JWT_SECRET = process.env.JWT_SECRET as string;
-const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '1d') as jwt.SignOptions['expiresIn'];
-
-export interface JwtPayload {
-  userId: string;
-  email: string;
-}
+export type JwtPayload = AuthUser;
 
 export function signToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return jwt.sign(payload, config.jwtSecret, {
+    expiresIn: config.jwtExpiresIn as jwt.SignOptions['expiresIn'],
+  });
 }
 
 export function verifyToken(token: string): JwtPayload {
-  return jwt.verify(token, JWT_SECRET) as JwtPayload;
+  return jwt.verify(token, config.jwtSecret) as JwtPayload;
 }

@@ -1,4 +1,6 @@
-import { NotFoundError } from '@/lib/errors';
+import { Prisma } from '@prisma/client';
+import { NotFoundError, ConflictError } from '@/lib/errors';
+import { handlePrismaError } from '@/lib/prisma-error';
 import {
   findProducts,
   findProductById,
@@ -23,12 +25,37 @@ export async function getProductById(id: string) {
 }
 
 export async function createNewProduct(input: ProductInput) {
-  return createProduct(input);
+  try {
+    return await createProduct(input);
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new ConflictError(`Product with name "${input.name}" already exists`);
+    }
+
+    throw handlePrismaError(error);
+  }
 }
 
 export async function updateExistingProduct(id: string, input: ProductUpdateInput) {
   await getProductById(id);
-  return updateProduct(id, input);
+
+  try {
+    return await updateProduct(id, input);
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new ConflictError(
+        `Product with name "${input.name}" already exists`
+      );
+    }
+
+    throw handlePrismaError(error);
+  }
 }
 
 export async function removeProduct(id: string) {

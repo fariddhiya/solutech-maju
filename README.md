@@ -6,7 +6,7 @@ REST API backend untuk technical test Solutech menggunakan Next.js App Router, T
 
 - Next.js App Router
 - TypeScript
-- Prisma ORM
+- Prisma ORM v6
 - PostgreSQL
 - Zod (validation)
 - jsonwebtoken (JWT)
@@ -16,18 +16,21 @@ REST API backend untuk technical test Solutech menggunakan Next.js App Router, T
 
 - Authentication with JWT (login only)
 - Product CRUD with pagination, search, and soft delete
-- Order creation with transaction and stock reduction
+- Order creation with database transaction and stock reduction
 - User-owned order list
 - Input validation using Zod
 - Consistent API response format
 - Protected routes using Bearer token
+- Prisma error mapping to proper HTTP status codes
+- UUID validation for path parameters
+- Environment variable validation at startup
 
 ## Project Structure
 
 ```
 src/
   app/api/           # Route handlers
-  lib/               # Shared utilities (prisma, jwt, response, errors, validation)
+  lib/               # Shared utilities (config, prisma, jwt, response, errors, validation, prisma-error)
   middlewares/       # Auth middleware/helper
   modules/           # Feature modules (auth, products, orders)
   types/             # Shared types
@@ -51,8 +54,10 @@ JWT_EXPIRES_IN="1d"
 ```
 
 - `DATABASE_URL`: PostgreSQL connection string.
-- `JWT_SECRET`: Secret key for signing JWT.
-- `JWT_EXPIRES_IN`: Token expiration time.
+- `JWT_SECRET`: Secret key for signing JWT (minimum 32 characters recommended).
+- `JWT_EXPIRES_IN`: Token expiration time (e.g., `1d`, `7d`, `1h`).
+
+Environment variables are validated at startup. The app will throw an error if required variables are missing.
 
 ## Setup PostgreSQL Database
 
@@ -88,6 +93,12 @@ npm run prisma:generate
 
 ```bash
 npm run prisma:seed
+```
+
+Or using Prisma CLI directly:
+
+```bash
+npx prisma db seed
 ```
 
 Seed creates one user and five sample products.
@@ -221,7 +232,20 @@ Response:
   "data": {
     "id": "...",
     "totalPrice": "150000.00",
-    "items": [...]
+    "items": [
+      {
+        "id": "...",
+        "productId": "...",
+        "quantity": 2,
+        "price": "...",
+        "subtotal": "...",
+        "product": {
+          "id": "...",
+          "name": "...",
+          "price": "..."
+        }
+      }
+    ]
   }
 }
 ```
@@ -230,8 +254,9 @@ Response:
 
 - Order creation runs inside a single Prisma transaction.
 - Products are fetched first, then validated for existence and sufficient stock.
-- If any item is invalid or stock is insufficient, the entire transaction is rolled back.
+- If any item is invalid, product is deleted, or stock is insufficient, the entire transaction is rolled back.
 - Product prices are taken from the database, not from the client request.
+- Duplicate product IDs in the same order are rejected by validation.
 - Stock is reduced only after all validations pass.
 
 ## Technical Decisions
@@ -240,21 +265,38 @@ Response:
 - Soft delete is implemented by setting `isDeleted` and `deletedAt` instead of deleting rows.
 - Layered architecture separates route, service, and repository for easier testing and maintenance.
 - JWT is used for stateless authentication.
+- Prisma known errors are mapped to appropriate HTTP status codes (e.g., P2002 duplicate to 409, P2025 not found to 404).
+- Environment variables are validated at startup to fail fast if configuration is missing.
 
 ## Assumptions
 
 - Only login is required for authentication (no registration endpoint).
 - One admin seed user is enough for the technical test.
 - Orders are immutable after creation (no update/delete order endpoint).
+- Product name is unique across all products.
 
 ## Optional Features Not Implemented
 
 - User registration
 - Refresh token
+- Logout / token blacklist
 - Order status / payment flow
 - Admin role authorization
 - Unit / integration tests
+- Product image upload
 
 ## Estimated Working Time
 
-Approximately 4-6 hours for stages 1 to 5, depending on review and refinement time.
+Approximately 5-7 hours for complete implementation, documentation, and review.
+
+## Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Run development server |
+| `npm run build` | Build production app |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint |
+| `npm run prisma:generate` | Generate Prisma client |
+| `npm run prisma:migrate` | Run Prisma migration |
+| `npm run prisma:seed` | Seed database |

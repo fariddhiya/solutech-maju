@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { ZodError } from 'zod';
 import { getAuthUser } from '@/middlewares/auth.middleware';
 import {
   getProductById,
@@ -8,7 +9,8 @@ import {
 import { productUpdateSchema } from '@/modules/products/product.schema';
 import { success, error } from '@/lib/response';
 import { ApiError } from '@/lib/errors';
-import { handleValidationError } from '@/lib/validation';
+import { handleValidationError, validateId } from '@/lib/validation';
+import { handlePrismaError } from '@/lib/prisma-error';
 
 export async function GET(
   request: NextRequest,
@@ -17,15 +19,30 @@ export async function GET(
   try {
     getAuthUser(request);
     const { id } = await params;
-    const product = await getProductById(id);
+    validateId(id);
 
+    const product = await getProductById(id);
     return success(product, 'Product retrieved successfully');
   } catch (err) {
     if (err instanceof ApiError) {
       return error(err.message, err.statusCode, err.errors ?? null);
     }
 
-    return error('Internal server error', 500);
+    if (err instanceof ZodError || err instanceof SyntaxError) {
+      const validationError = handleValidationError(err);
+      return error(
+        validationError.message,
+        validationError.statusCode,
+        validationError.errors ?? null
+      );
+    }
+
+    const prismaError = handlePrismaError(err);
+    return error(
+      prismaError.message,
+      prismaError.statusCode,
+      prismaError.errors ?? null
+    );
   }
 }
 
@@ -37,6 +54,8 @@ export async function PATCH(
     getAuthUser(request);
 
     const { id } = await params;
+    validateId(id);
+
     const body = await request.json();
     const parsed = productUpdateSchema.parse(body);
     const product = await updateExistingProduct(id, parsed);
@@ -47,8 +66,21 @@ export async function PATCH(
       return error(err.message, err.statusCode, err.errors ?? null);
     }
 
-    const validationError = handleValidationError(err);
-    return error(validationError.message, validationError.statusCode, validationError.errors ?? null);
+    if (err instanceof ZodError || err instanceof SyntaxError) {
+      const validationError = handleValidationError(err);
+      return error(
+        validationError.message,
+        validationError.statusCode,
+        validationError.errors ?? null
+      );
+    }
+
+    const prismaError = handlePrismaError(err);
+    return error(
+      prismaError.message,
+      prismaError.statusCode,
+      prismaError.errors ?? null
+    );
   }
 }
 
@@ -60,6 +92,7 @@ export async function DELETE(
     getAuthUser(request);
 
     const { id } = await params;
+    validateId(id);
     await removeProduct(id);
 
     return success(null, 'Product deleted successfully');
@@ -68,6 +101,20 @@ export async function DELETE(
       return error(err.message, err.statusCode, err.errors ?? null);
     }
 
-    return error('Internal server error', 500);
+    if (err instanceof ZodError || err instanceof SyntaxError) {
+      const validationError = handleValidationError(err);
+      return error(
+        validationError.message,
+        validationError.statusCode,
+        validationError.errors ?? null
+      );
+    }
+
+    const prismaError = handlePrismaError(err);
+    return error(
+      prismaError.message,
+      prismaError.statusCode,
+      prismaError.errors ?? null
+    );
   }
 }

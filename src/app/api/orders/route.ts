@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { ZodError } from 'zod';
 import { getAuthUser } from '@/middlewares/auth.middleware';
 import {
   createNewOrder,
@@ -8,6 +9,7 @@ import { orderSchema } from '@/modules/orders/order.schema';
 import { success, error } from '@/lib/response';
 import { ApiError } from '@/lib/errors';
 import { handleValidationError } from '@/lib/validation';
+import { handlePrismaError } from '@/lib/prisma-error';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,11 +24,20 @@ export async function POST(request: NextRequest) {
       return error(err.message, err.statusCode, err.errors ?? null);
     }
 
-    const validationError = handleValidationError(err);
+    if (err instanceof ZodError || err instanceof SyntaxError) {
+      const validationError = handleValidationError(err);
+      return error(
+        validationError.message,
+        validationError.statusCode,
+        validationError.errors ?? null
+      );
+    }
+
+    const prismaError = handlePrismaError(err);
     return error(
-      validationError.message,
-      validationError.statusCode,
-      validationError.errors ?? null
+      prismaError.message,
+      prismaError.statusCode,
+      prismaError.errors ?? null
     );
   }
 }
@@ -42,6 +53,11 @@ export async function GET(request: NextRequest) {
       return error(err.message, err.statusCode, err.errors ?? null);
     }
 
-    return error('Internal server error', 500);
+    const prismaError = handlePrismaError(err);
+    return error(
+      prismaError.message,
+      prismaError.statusCode,
+      prismaError.errors ?? null
+    );
   }
 }

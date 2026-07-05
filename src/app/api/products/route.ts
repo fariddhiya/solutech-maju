@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { ZodError } from 'zod';
 import { getAuthUser } from '@/middlewares/auth.middleware';
 import {
   getProducts,
@@ -11,6 +12,7 @@ import {
 import { success, error } from '@/lib/response';
 import { ApiError } from '@/lib/errors';
 import { handleValidationError } from '@/lib/validation';
+import { handlePrismaError } from '@/lib/prisma-error';
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,8 +32,21 @@ export async function GET(request: NextRequest) {
       return error(err.message, err.statusCode, err.errors ?? null);
     }
 
-    const validationError = handleValidationError(err);
-    return error(validationError.message, validationError.statusCode, validationError.errors ?? null);
+    if (err instanceof ZodError || err instanceof SyntaxError) {
+      const validationError = handleValidationError(err);
+      return error(
+        validationError.message,
+        validationError.statusCode,
+        validationError.errors ?? null
+      );
+    }
+
+    const prismaError = handlePrismaError(err);
+    return error(
+      prismaError.message,
+      prismaError.statusCode,
+      prismaError.errors ?? null
+    );
   }
 }
 
@@ -49,7 +64,20 @@ export async function POST(request: NextRequest) {
       return error(err.message, err.statusCode, err.errors ?? null);
     }
 
-    const validationError = handleValidationError(err);
-    return error(validationError.message, validationError.statusCode, validationError.errors ?? null);
+    if (err instanceof ZodError || err instanceof SyntaxError) {
+      const validationError = handleValidationError(err);
+      return error(
+        validationError.message,
+        validationError.statusCode,
+        validationError.errors ?? null
+      );
+    }
+
+    const prismaError = handlePrismaError(err);
+    return error(
+      prismaError.message,
+      prismaError.statusCode,
+      prismaError.errors ?? null
+    );
   }
 }
