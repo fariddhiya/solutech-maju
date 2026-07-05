@@ -7,15 +7,27 @@ import { ApiError } from '@/lib/errors';
 import { handleValidationError } from '@/lib/validation';
 import { handlePrismaError } from '@/lib/prisma-error';
 import { SUCCESS_MESSAGES } from '@/constants/success-message.constant';
+import { createRequestContext } from '@/lib/request-context';
+import { logRequest, logRequestError } from '@/lib/logger';
+import { applyRateLimit } from '@/middlewares/rate-limit.middleware';
 
 export async function POST(request: NextRequest) {
+  const context = createRequestContext(request);
+
   try {
+    applyRateLimit(context, 'login');
+
     const body = await request.json();
     const parsed = loginSchema.parse(body);
     const result = await login(parsed);
 
+    logRequest(context, 200);
+
     return success(result, SUCCESS_MESSAGES.AUTH.LOGIN);
   } catch (err) {
+    const statusCode = err instanceof ApiError ? err.statusCode : 500;
+    logRequestError(context, err, statusCode);
+
     if (err instanceof ApiError) {
       return error(err.message, err.statusCode, err.errors ?? null);
     }

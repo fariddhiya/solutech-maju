@@ -22,6 +22,8 @@ REST API backend untuk technical test Solutech menggunakan Next.js App Router, T
 - Consistent API response format
 - Protected routes using Bearer token
 - Prisma error mapping to proper HTTP status codes
+- Request logging with structured JSON logs
+- Rate limiting per IP (stricter for login)
 - UUID validation for path parameters
 - Environment variable validation at startup
 
@@ -30,8 +32,9 @@ REST API backend untuk technical test Solutech menggunakan Next.js App Router, T
 ```
 src/
   app/api/           # Route handlers
-  lib/               # Shared utilities (config, prisma, jwt, response, errors, validation, prisma-error)
-  middlewares/       # Auth middleware/helper
+  constants/         # Error and success message constants
+  lib/               # Shared utilities (config, prisma, jwt, response, errors, validation, prisma-error, logger, request-context, rate-limit)
+  middlewares/       # Auth, logging, and rate limit middleware/helpers
   modules/           # Feature modules (auth, products, orders)
   types/             # Shared types
 prisma/              # Prisma schema and seed
@@ -51,11 +54,23 @@ Copy `.env.example` to `.env` and fill in the values:
 DATABASE_URL="postgresql://user:password@localhost:5432/solutech_db?schema=public"
 JWT_SECRET="your-secret-key-min-32-characters-long"
 JWT_EXPIRES_IN="1d"
+
+# Optional: Rate limiting and request logging
+RATE_LIMIT_WINDOW_SECONDS=900
+RATE_LIMIT_MAX_REQUESTS=100
+LOGIN_RATE_LIMIT_MAX_REQUESTS=5
+ENABLE_REQUEST_LOGGING=true
+ENABLE_RATE_LIMITING=true
 ```
 
 - `DATABASE_URL`: PostgreSQL connection string.
 - `JWT_SECRET`: Secret key for signing JWT (minimum 32 characters recommended).
 - `JWT_EXPIRES_IN`: Token expiration time (e.g., `1d`, `7d`, `1h`).
+- `RATE_LIMIT_WINDOW_SECONDS`: Time window for rate limiting in seconds (default: 900 = 15 minutes).
+- `RATE_LIMIT_MAX_REQUESTS`: Max requests per IP per window for general API (default: 100).
+- `LOGIN_RATE_LIMIT_MAX_REQUESTS`: Max login attempts per IP per window (default: 5).
+- `ENABLE_REQUEST_LOGGING`: Toggle structured request logging (`true`/`false`).
+- `ENABLE_RATE_LIMITING`: Toggle rate limiting (`true`/`false`).
 
 Environment variables are validated at startup. The app will throw an error if required variables are missing.
 
@@ -128,6 +143,74 @@ Server will run at `http://localhost:3000`.
   "password": "password123"
 }
 ```
+
+## Optional Features: Request Logging and Rate Limiting
+
+These are value-added features implemented without overengineering the project.
+
+### Request Logging
+
+Every API request is logged as structured JSON to the console. Logged fields:
+
+- `level`: `info` or `error`
+- `requestId`: unique request identifier
+- `method`: HTTP method
+- `path`: URL path
+- `statusCode`: response status code
+- `durationMs`: request duration in milliseconds
+- `ip`: client IP address
+- `userAgent`: client user agent
+- `timestamp`: ISO timestamp
+
+Sensitive data such as password, JWT token, and Authorization header are **never** logged.
+
+Example log:
+
+```json
+{
+  "level": "info",
+  "requestId": "req_123",
+  "method": "POST",
+  "path": "/api/auth/login",
+  "statusCode": 200,
+  "durationMs": 35,
+  "ip": "127.0.0.1",
+  "userAgent": "PostmanRuntime/7.37.0",
+  "timestamp": "2026-07-05T12:00:00.000Z"
+}
+```
+
+### Rate Limiting
+
+Simple in-memory rate limiter using IP address as identifier.
+
+Rules:
+
+- General API: 100 requests per IP per 15 minutes.
+- Login endpoint: 5 requests per IP per 15 minutes.
+
+When limit is exceeded, the API returns:
+
+```json
+{
+  "success": false,
+  "message": "Too many requests. Please try again later.",
+  "errors": null
+}
+```
+
+HTTP status code: `429 Too Many Requests`.
+
+### Test Rate Limiting in Postman
+
+1. Send login request more than 5 times in 15 minutes.
+2. The 6th request should return `429`.
+3. For general API, send more than 100 requests in 15 minutes.
+4. The 101st request should return `429`.
+
+### Limitations
+
+The in-memory rate limiter works well for local development and single-instance deployments. It is **not suitable** for multi-instance production because each server instance has its own memory store. For real production, use Redis-based rate limiting.
 
 ## API Endpoints
 
@@ -266,6 +349,7 @@ Response:
 - Layered architecture separates route, service, and repository for easier testing and maintenance.
 - JWT is used for stateless authentication.
 - Prisma known errors are mapped to appropriate HTTP status codes (e.g., P2002 duplicate to 409, P2025 not found to 404).
+- Request logging and rate limiting use in-memory store for simplicity.
 - Environment variables are validated at startup to fail fast if configuration is missing.
 
 ## Assumptions
@@ -274,6 +358,7 @@ Response:
 - One admin seed user is enough for the technical test.
 - Orders are immutable after creation (no update/delete order endpoint).
 - Product name is unique across all products.
+- Rate limiting is acceptable using in-memory store for a technical test/local environment.
 
 ## Optional Features Not Implemented
 
@@ -284,6 +369,7 @@ Response:
 - Admin role authorization
 - Unit / integration tests
 - Product image upload
+- Redis-based distributed rate limiting
 
 ## Estimated Working Time
 

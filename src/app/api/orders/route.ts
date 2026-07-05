@@ -11,16 +11,26 @@ import { ApiError } from '@/lib/errors';
 import { handleValidationError } from '@/lib/validation';
 import { handlePrismaError } from '@/lib/prisma-error';
 import { SUCCESS_MESSAGES } from '@/constants/success-message.constant';
+import { createRequestContext } from '@/lib/request-context';
+import { logRequest, logRequestError } from '@/lib/logger';
+import { applyRateLimit } from '@/middlewares/rate-limit.middleware';
 
 export async function POST(request: NextRequest) {
+  const context = createRequestContext(request);
+
   try {
+    applyRateLimit(context, 'api');
     const user = getAuthUser(request);
     const body = await request.json();
     const parsed = orderSchema.parse(body);
     const order = await createNewOrder(user.userId, parsed);
 
+    logRequest(context, 201);
     return success(order, SUCCESS_MESSAGES.ORDER.CREATED, 201);
   } catch (err) {
+    const statusCode = err instanceof ApiError ? err.statusCode : 500;
+    logRequestError(context, err, statusCode);
+
     if (err instanceof ApiError) {
       return error(err.message, err.statusCode, err.errors ?? null);
     }
@@ -44,12 +54,19 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const context = createRequestContext(request);
+
   try {
+    applyRateLimit(context, 'api');
     const user = getAuthUser(request);
     const orders = await getUserOrders(user.userId);
 
+    logRequest(context, 200);
     return success(orders, SUCCESS_MESSAGES.ORDER.FETCHED);
   } catch (err) {
+    const statusCode = err instanceof ApiError ? err.statusCode : 500;
+    logRequestError(context, err, statusCode);
+
     if (err instanceof ApiError) {
       return error(err.message, err.statusCode, err.errors ?? null);
     }

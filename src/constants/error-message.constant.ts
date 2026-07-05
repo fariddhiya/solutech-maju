@@ -41,5 +41,6 @@ export const ERROR_MESSAGES = {
     INTERNAL_SERVER_ERROR: 'Internal server error',
     BAD_REQUEST: 'Bad request',
     CONFLICT: 'Conflict',
+    TOO_MANY_REQUESTS: 'Too many requests. Please try again later.',
   },
 } as const;
