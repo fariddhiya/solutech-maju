@@ -9,6 +9,7 @@ import {
   findOrdersByUserId,
 } from './order.repository';
 import { OrderInput } from './order.schema';
+import { ERROR_MESSAGES } from '@/constants/error-message.constant';
 
 export async function createNewOrder(userId: string, input: OrderInput) {
   const productIds = input.items.map((item) => item.productId);
@@ -23,12 +24,12 @@ export async function createNewOrder(userId: string, input: OrderInput) {
         const product = productMap.get(item.productId);
 
         if (!product) {
-          throw new NotFoundError(`Product not found: ${item.productId}`);
+          throw new NotFoundError(ERROR_MESSAGES.ORDER.PRODUCT_NOT_FOUND(item.productId));
         }
 
         if (product.stock < item.quantity) {
           throw new ConflictError(
-            `Insufficient stock for product: ${product.name}`
+            ERROR_MESSAGES.PRODUCT.INSUFFICIENT_STOCK(product.name)
           );
         }
       }

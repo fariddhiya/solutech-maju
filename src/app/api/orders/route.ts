@@ -10,6 +10,7 @@ import { success, error } from '@/lib/response';
 import { ApiError } from '@/lib/errors';
 import { handleValidationError } from '@/lib/validation';
 import { handlePrismaError } from '@/lib/prisma-error';
+import { SUCCESS_MESSAGES } from '@/constants/success-message.constant';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
     const parsed = orderSchema.parse(body);
     const order = await createNewOrder(user.userId, parsed);
 
-    return success(order, 'Order created successfully', 201);
+    return success(order, SUCCESS_MESSAGES.ORDER.CREATED, 201);
   } catch (err) {
     if (err instanceof ApiError) {
       return error(err.message, err.statusCode, err.errors ?? null);
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
     const user = getAuthUser(request);
     const orders = await getUserOrders(user.userId);
 
-    return success(orders, 'Orders retrieved successfully');
+    return success(orders, SUCCESS_MESSAGES.ORDER.FETCHED);
   } catch (err) {
     if (err instanceof ApiError) {
       return error(err.message, err.statusCode, err.errors ?? null);

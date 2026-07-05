@@ -1,7 +1,8 @@
 import { ZodError, z } from 'zod';
 import { BadRequestError } from './errors';
+import { ERROR_MESSAGES } from '@/constants/error-message.constant';
 
-const uuidSchema = z.string().uuid('Invalid id format');
+const uuidSchema = z.string().uuid(ERROR_MESSAGES.VALIDATION.INVALID_ID);
 
 export function formatZodError(error: ZodError): Record<string, string[]> {
   const errors: Record<string, string[]> = {};
@@ -17,24 +18,30 @@ export function formatZodError(error: ZodError): Record<string, string[]> {
 
 export function handleValidationError(error: unknown): BadRequestError {
   if (error instanceof ZodError) {
-    return new BadRequestError('Validation error', formatZodError(error));
+    return new BadRequestError(
+      ERROR_MESSAGES.VALIDATION.VALIDATION_ERROR,
+      formatZodError(error)
+    );
   }
 
   if (error instanceof SyntaxError) {
-    return new BadRequestError('Invalid JSON body');
+    return new BadRequestError(ERROR_MESSAGES.VALIDATION.INVALID_JSON);
   }
 
   if (error instanceof Error) {
     return new BadRequestError(error.message);
   }
 
-  return new BadRequestError('Invalid request');
+  return new BadRequestError(ERROR_MESSAGES.VALIDATION.INVALID_REQUEST);
 }
 
 export function validateId(id: string): void {
   const result = uuidSchema.safeParse(id);
 
   if (!result.success) {
-    throw new BadRequestError('Invalid id format', formatZodError(result.error));
+    throw new BadRequestError(
+      ERROR_MESSAGES.VALIDATION.INVALID_ID,
+      formatZodError(result.error)
+    );
   }
 }

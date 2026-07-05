@@ -11,6 +11,7 @@ import { success, error } from '@/lib/response';
 import { ApiError } from '@/lib/errors';
 import { handleValidationError, validateId } from '@/lib/validation';
 import { handlePrismaError } from '@/lib/prisma-error';
+import { SUCCESS_MESSAGES } from '@/constants/success-message.constant';
 
 export async function GET(
   request: NextRequest,
@@ -22,7 +23,7 @@ export async function GET(
     validateId(id);
 
     const product = await getProductById(id);
-    return success(product, 'Product retrieved successfully');
+    return success(product, SUCCESS_MESSAGES.PRODUCT.DETAIL_FETCHED);
   } catch (err) {
     if (err instanceof ApiError) {
       return error(err.message, err.statusCode, err.errors ?? null);
@@ -60,7 +61,7 @@ export async function PATCH(
     const parsed = productUpdateSchema.parse(body);
     const product = await updateExistingProduct(id, parsed);
 
-    return success(product, 'Product updated successfully');
+    return success(product, SUCCESS_MESSAGES.PRODUCT.UPDATED);
   } catch (err) {
     if (err instanceof ApiError) {
       return error(err.message, err.statusCode, err.errors ?? null);
@@ -95,7 +96,7 @@ export async function DELETE(
     validateId(id);
     await removeProduct(id);
 
-    return success(null, 'Product deleted successfully');
+    return success(null, SUCCESS_MESSAGES.PRODUCT.DELETED);
   } catch (err) {
     if (err instanceof ApiError) {
       return error(err.message, err.statusCode, err.errors ?? null);

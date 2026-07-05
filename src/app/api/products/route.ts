@@ -13,6 +13,7 @@ import { success, error } from '@/lib/response';
 import { ApiError } from '@/lib/errors';
 import { handleValidationError } from '@/lib/validation';
 import { handlePrismaError } from '@/lib/prisma-error';
+import { SUCCESS_MESSAGES } from '@/constants/success-message.constant';
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     });
 
     const result = await getProducts(query);
-    return success(result, 'Products retrieved successfully');
+    return success(result, SUCCESS_MESSAGES.PRODUCT.FETCHED);
   } catch (err) {
     if (err instanceof ApiError) {
       return error(err.message, err.statusCode, err.errors ?? null);
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
     const parsed = productSchema.parse(body);
     const product = await createNewProduct(parsed);
 
-    return success(product, 'Product created successfully', 201);
+    return success(product, SUCCESS_MESSAGES.PRODUCT.CREATED, 201);
   } catch (err) {
     if (err instanceof ApiError) {
       return error(err.message, err.statusCode, err.errors ?? null);

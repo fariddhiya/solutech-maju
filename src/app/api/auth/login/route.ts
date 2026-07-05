@@ -6,6 +6,7 @@ import { success, error } from '@/lib/response';
 import { ApiError } from '@/lib/errors';
 import { handleValidationError } from '@/lib/validation';
 import { handlePrismaError } from '@/lib/prisma-error';
+import { SUCCESS_MESSAGES } from '@/constants/success-message.constant';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
     const parsed = loginSchema.parse(body);
     const result = await login(parsed);
 
-    return success(result, 'Login successful');
+    return success(result, SUCCESS_MESSAGES.AUTH.LOGIN);
   } catch (err) {
     if (err instanceof ApiError) {
       return error(err.message, err.statusCode, err.errors ?? null);

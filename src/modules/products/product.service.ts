@@ -8,7 +8,12 @@ import {
   updateProduct,
   softDeleteProduct,
 } from './product.repository';
-import { ProductInput, ProductUpdateInput, ProductQuery } from './product.schema';
+import {
+  ProductInput,
+  ProductUpdateInput,
+  ProductQuery,
+} from './product.schema';
+import { ERROR_MESSAGES } from '@/constants/error-message.constant';
 
 export async function getProducts(query: ProductQuery) {
   return findProducts(query);
@@ -18,7 +23,7 @@ export async function getProductById(id: string) {
   const product = await findProductById(id);
 
   if (!product) {
-    throw new NotFoundError('Product not found');
+    throw new NotFoundError(ERROR_MESSAGES.PRODUCT.NOT_FOUND);
   }
 
   return product;
@@ -32,14 +37,17 @@ export async function createNewProduct(input: ProductInput) {
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === 'P2002'
     ) {
-      throw new ConflictError(`Product with name "${input.name}" already exists`);
+      throw new ConflictError(ERROR_MESSAGES.PRODUCT.ALREADY_EXISTS(input.name));
     }
 
     throw handlePrismaError(error);
   }
 }
 
-export async function updateExistingProduct(id: string, input: ProductUpdateInput) {
+export async function updateExistingProduct(
+  id: string,
+  input: ProductUpdateInput
+) {
   await getProductById(id);
 
   try {
@@ -47,11 +55,10 @@ export async function updateExistingProduct(id: string, input: ProductUpdateInpu
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
+      error.code === 'P2002' &&
+      input.name
     ) {
-      throw new ConflictError(
-        `Product with name "${input.name}" already exists`
-      );
+      throw new ConflictError(ERROR_MESSAGES.PRODUCT.ALREADY_EXISTS(input.name));
     }
 
     throw handlePrismaError(error);
