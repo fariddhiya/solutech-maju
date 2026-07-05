@@ -29,3 +29,10 @@ export class BadRequestError extends ApiError {
     this.name = 'BadRequestError';
   }
 }
+
+export class ConflictError extends ApiError {
+  constructor(message = 'Conflict') {
+    super(message, 409);
+    this.name = 'ConflictError';
+  }
+}

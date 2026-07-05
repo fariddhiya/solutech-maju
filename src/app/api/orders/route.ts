@@ -1,25 +1,45 @@
 import { NextRequest } from 'next/server';
 import { getAuthUser } from '@/middlewares/auth.middleware';
-import { createOrder } from '@/modules/orders/order.service';
+import {
+  createNewOrder,
+  getUserOrders,
+} from '@/modules/orders/order.service';
 import { orderSchema } from '@/modules/orders/order.schema';
 import { success, error } from '@/lib/response';
 import { ApiError } from '@/lib/errors';
+import { handleValidationError } from '@/lib/validation';
 
 export async function POST(request: NextRequest) {
   try {
     const user = getAuthUser(request);
     const body = await request.json();
     const parsed = orderSchema.parse(body);
-    const result = await createOrder(user.userId, parsed);
+    const order = await createNewOrder(user.userId, parsed);
 
-    return success(result, 'Order accepted', 202);
+    return success(order, 'Order created successfully', 201);
   } catch (err) {
     if (err instanceof ApiError) {
-      return error(err.message, err.statusCode, err.errors);
+      return error(err.message, err.statusCode, err.errors ?? null);
     }
 
-    if (err instanceof Error) {
-      return error(err.message, 400);
+    const validationError = handleValidationError(err);
+    return error(
+      validationError.message,
+      validationError.statusCode,
+      validationError.errors ?? null
+    );
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const user = getAuthUser(request);
+    const orders = await getUserOrders(user.userId);
+
+    return success(orders, 'Orders retrieved successfully');
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return error(err.message, err.statusCode, err.errors ?? null);
     }
 
     return error('Internal server error', 500);

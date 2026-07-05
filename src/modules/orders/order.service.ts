@@ -1,10 +1,58 @@
-import { findOrderById } from './order.repository';
+import { prisma } from '@/lib/prisma';
+import { NotFoundError, ConflictError } from '@/lib/errors';
+import {
+  findProductsByIds,
+  createOrder,
+  reduceStock,
+  findOrdersByUserId,
+} from './order.repository';
 import { OrderInput } from './order.schema';
 
-export async function createOrder(userId: string, input: OrderInput) {
-  return { userId, input, message: 'Order creation will be implemented in next stage' };
+export async function createNewOrder(userId: string, input: OrderInput) {
+  const productIds = input.items.map((item) => item.productId);
+
+  return prisma.$transaction(async (tx) => {
+    const products = await findProductsByIds(productIds, tx);
+
+    const productMap = new Map(products.map((p) => [p.id, p]));
+
+    for (const item of input.items) {
+      const product = productMap.get(item.productId);
+
+      if (!product) {
+        throw new NotFoundError(`Product not found: ${item.productId}`);
+      }
+
+      if (product.stock < item.quantity) {
+        throw new ConflictError(
+          `Insufficient stock for product: ${product.name}`
+        );
+      }
+    }
+
+    const orderItems = input.items.map((item) => {
+      const product = productMap.get(item.productId)!;
+      const price = Number(product.price);
+      const subtotal = price * item.quantity;
+
+      return {
+        productId: item.productId,
+        quantity: item.quantity,
+        price,
+        subtotal,
+      };
+    });
+
+    const totalPrice = orderItems.reduce((sum, item) => sum + item.subtotal, 0);
+
+    for (const item of input.items) {
+      await reduceStock(item.productId, item.quantity, tx);
+    }
+
+    return createOrder(userId, totalPrice, orderItems, tx);
+  });
 }
 
-export async function getOrderById(id: string) {
-  return findOrderById(id);
+export async function getUserOrders(userId: string) {
+  return findOrdersByUserId(userId);
 }
