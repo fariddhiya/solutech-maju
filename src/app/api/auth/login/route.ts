@@ -3,6 +3,7 @@ import { loginSchema } from '@/modules/auth/auth.schema';
 import { login } from '@/modules/auth/auth.service';
 import { success, error } from '@/lib/response';
 import { ApiError } from '@/lib/errors';
+import { ZodError } from 'zod';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +14,17 @@ export async function POST(request: NextRequest) {
     return success(result, 'Login successful');
   } catch (err) {
     if (err instanceof ApiError) {
-      return error(err.message, err.statusCode, err.errors);
+      return error(err.message, err.statusCode, err.errors ?? null);
+    }
+
+    if (err instanceof ZodError) {
+      const errors: Record<string, string[]> = {};
+      err.issues.forEach((issue) => {
+        const key = issue.path.join('.');
+        if (!errors[key]) errors[key] = [];
+        errors[key].push(issue.message);
+      });
+      return error('Validation error', 400, errors);
     }
 
     if (err instanceof Error) {

@@ -8,13 +8,13 @@ export async function login(input: LoginInput) {
   const user = await findUserByEmail(input.email);
 
   if (!user) {
-    throw new UnauthorizedError('Invalid credentials');
+    throw new UnauthorizedError('Invalid email or password');
   }
 
   const isValid = await comparePassword(input.password, user.password);
 
   if (!isValid) {
-    throw new UnauthorizedError('Invalid credentials');
+    throw new UnauthorizedError('Invalid email or password');
   }
 
   const token = signToken({ userId: user.id, email: user.email });
