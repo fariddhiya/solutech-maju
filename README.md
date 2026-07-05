@@ -1,36 +1,260 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Solutech Technical Test - Backend Developer
 
-## Getting Started
+REST API backend untuk technical test Solutech menggunakan Next.js App Router, TypeScript, Prisma, dan PostgreSQL.
 
-First, run the development server:
+## Tech Stack
+
+- Next.js App Router
+- TypeScript
+- Prisma ORM
+- PostgreSQL
+- Zod (validation)
+- jsonwebtoken (JWT)
+- bcryptjs (password hashing)
+
+## Features Completed
+
+- Authentication with JWT (login only)
+- Product CRUD with pagination, search, and soft delete
+- Order creation with transaction and stock reduction
+- User-owned order list
+- Input validation using Zod
+- Consistent API response format
+- Protected routes using Bearer token
+
+## Project Structure
+
+```
+src/
+  app/api/           # Route handlers
+  lib/               # Shared utilities (prisma, jwt, response, errors, validation)
+  middlewares/       # Auth middleware/helper
+  modules/           # Feature modules (auth, products, orders)
+  types/             # Shared types
+prisma/              # Prisma schema and seed
+postman/             # Postman collection
+database/            # SQL create table scripts
+```
+
+- `route.ts` only parses request, calls service, and returns response.
+- `service.ts` contains business logic.
+- `repository.ts` contains Prisma queries.
+
+## Environment Variables
+
+Copy `.env.example` to `.env` and fill in the values:
+
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/solutech_db?schema=public"
+JWT_SECRET="your-secret-key-min-32-characters-long"
+JWT_EXPIRES_IN="1d"
+```
+
+- `DATABASE_URL`: PostgreSQL connection string.
+- `JWT_SECRET`: Secret key for signing JWT.
+- `JWT_EXPIRES_IN`: Token expiration time.
+
+## Setup PostgreSQL Database
+
+1. Install PostgreSQL locally or use Docker.
+2. Create a database named `solutech_db`.
+3. Create tables using one of these methods:
+
+### Option A: Run SQL file
+
+```bash
+psql -U postgres -d solutech_db -f database/create_tables.sql
+```
+
+### Option B: Use Prisma Migrate
+
+```bash
+npx prisma migrate dev --name init
+```
+
+## Install Dependencies
+
+```bash
+npm install
+```
+
+## Run Prisma Generate
+
+```bash
+npm run prisma:generate
+```
+
+## Run Prisma Seed
+
+```bash
+npm run prisma:seed
+```
+
+Seed creates one user and five sample products.
+
+## Run Development Server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Server will run at `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Test Using Postman
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Import `postman/Solutech-Backend-Test.postman_collection.json`.
+2. Set collection variable `base_url` to `http://localhost:3000`.
+3. Send `POST /api/auth/login` with credentials below.
+4. Copy the `token` from response.
+5. Set collection variable `token` to the copied value.
+6. Use other endpoints; they automatically use the token.
 
-## Learn More
+### Example Login Credentials
 
-To learn more about Next.js, take a look at the following resources:
+```json
+{
+  "email": "admin@example.com",
+  "password": "password123"
+}
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## API Endpoints
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/login` | Login and get JWT token |
+| GET | `/api/products` | List products (paginated, searchable) |
+| GET | `/api/products/:id` | Get product detail |
+| POST | `/api/products` | Create product |
+| PATCH | `/api/products/:id` | Update product |
+| DELETE | `/api/products/:id` | Soft delete product |
+| POST | `/api/orders` | Create order |
+| GET | `/api/orders` | List current user's orders |
 
-## Deploy on Vercel
+## Example Request and Response
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Login
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Request:
+
+```json
+POST /api/auth/login
+{
+  "email": "admin@example.com",
+  "password": "password123"
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "token": "jwt_token_here",
+    "user": {
+      "id": "...",
+      "name": "Admin",
+      "email": "admin@example.com"
+    }
+  }
+}
+```
+
+### Create Product
+
+Request:
+
+```json
+POST /api/products
+Authorization: Bearer <token>
+{
+  "name": "Mechanical Keyboard",
+  "description": "RGB mechanical keyboard",
+  "price": 750000,
+  "stock": 30
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Product created successfully",
+  "data": {
+    "id": "...",
+    "name": "Mechanical Keyboard",
+    "description": "RGB mechanical keyboard",
+    "price": "750000.00",
+    "stock": 30,
+    "isDeleted": false,
+    "createdAt": "...",
+    "updatedAt": "...",
+    "deletedAt": null
+  }
+}
+```
+
+### Create Order
+
+Request:
+
+```json
+POST /api/orders
+Authorization: Bearer <token>
+{
+  "items": [
+    { "productId": "product_id_here", "quantity": 2 },
+    { "productId": "another_product_id_here", "quantity": 1 }
+  ]
+}
+```
+
+Response:
+
+```json
+{
+  "success": true,
+  "message": "Order created successfully",
+  "data": {
+    "id": "...",
+    "totalPrice": "150000.00",
+    "items": [...]
+  }
+}
+```
+
+## Notes About Transaction and Stock Handling
+
+- Order creation runs inside a single Prisma transaction.
+- Products are fetched first, then validated for existence and sufficient stock.
+- If any item is invalid or stock is insufficient, the entire transaction is rolled back.
+- Product prices are taken from the database, not from the client request.
+- Stock is reduced only after all validations pass.
+
+## Technical Decisions
+
+- Prisma transaction callback is used to guarantee atomicity for order creation.
+- Soft delete is implemented by setting `isDeleted` and `deletedAt` instead of deleting rows.
+- Layered architecture separates route, service, and repository for easier testing and maintenance.
+- JWT is used for stateless authentication.
+
+## Assumptions
+
+- Only login is required for authentication (no registration endpoint).
+- One admin seed user is enough for the technical test.
+- Orders are immutable after creation (no update/delete order endpoint).
+
+## Optional Features Not Implemented
+
+- User registration
+- Refresh token
+- Order status / payment flow
+- Admin role authorization
+- Unit / integration tests
+
+## Estimated Working Time
+
+Approximately 4-6 hours for stages 1 to 5, depending on review and refinement time.
