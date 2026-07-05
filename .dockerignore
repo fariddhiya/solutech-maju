@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log
+.next
+.git
+.env
+.env.local
+.env.*.local
+Dockerfile
+.dockerignore
+docker-compose.yml
+Makefile
+README.md
+CHANGELOG.md
+postman
+.github
+.vscode
+coverage

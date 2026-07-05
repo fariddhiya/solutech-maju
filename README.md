@@ -86,11 +86,97 @@ Environment variables are validated at startup. The app will throw an error if r
 psql -U postgres -d solutech_db -f database/create_tables.sql
 ```
 
-### Option B: Use Prisma Migrate
+### Option B: Use Prisma Migrate (Recommended for Production)
+
+This project supports Prisma Migrate for version-controlled schema changes.
+
+Initialize migrations from the current schema:
 
 ```bash
 npx prisma migrate dev --name init
 ```
+
+This will:
+- Create the `prisma/migrations/` directory
+- Generate the initial `migration.sql`
+- Create and track the `_prisma_migrations` table in the database
+- Apply the schema to the database
+
+After the initial migration is created, future schema changes should use:
+
+```bash
+npx prisma migrate dev --name add_product_category
+```
+
+For production or CI/CD deployment:
+
+```bash
+npm run prisma:migrate:prod
+```
+
+This runs `prisma migrate deploy` which applies pending migrations without prompting.
+
+Check migration status:
+
+```bash
+npm run prisma:status
+```
+
+## Schema Rollback Strategy
+
+Prisma Migrate does not have an automatic `rollback` command. The recommended rollback approach is to create a new migration that performs the inverse operation.
+
+### Example: Rollback After a Buggy Migration
+
+Suppose a migration added a `category` column to `products`:
+
+```bash
+npx prisma migrate dev --name add_category_to_product
+```
+
+If this causes a bug in production, do not manually delete the migration file. Instead, create a new migration that undoes the change:
+
+```bash
+npx prisma migrate dev --name remove_category_from_product
+```
+
+Prisma will generate SQL such as:
+
+```sql
+ALTER TABLE products DROP COLUMN category;
+```
+
+This keeps all schema changes tracked in version control.
+
+### Pre-Migration Backup
+
+Always backup the database before applying migrations in production:
+
+```bash
+pg_dump -U postgres -d solutech_db > backup_$(date +%Y%m%d_%H%M%S).sql
+```
+
+### Restore from Backup
+
+If the migration caused critical issues and data cannot be recovered with an inverse migration, restore from backup:
+
+```bash
+psql -U postgres -d solutech_db < backup_YYYYMMDD_HHMMSS.sql
+```
+
+Then mark the problematic migration as rolled back in Prisma:
+
+```bash
+npx prisma migrate resolve --rolled-back "20260105120000_add_category_to_product"
+```
+
+This updates the `_prisma_migrations` table without changing the database schema.
+
+### Important Notes
+
+- The `database/create_tables.sql` file is kept as a fallback reference.
+- Once Prisma Migrate is initialized, use `prisma migrate dev` for future schema changes.
+- For zero-downtime deployments, prefer backward-compatible migrations (e.g., add nullable columns, add new endpoints) before removing old fields.
 
 ## Install Dependencies
 
@@ -125,6 +211,67 @@ npm run dev
 ```
 
 Server will run at `http://localhost:3000`.
+
+## Run with Docker (One Command)
+
+This project includes Docker and Docker Compose setup with PostgreSQL.
+
+### Requirements
+
+- Docker
+- Docker Compose
+- Make
+
+### Quick Start
+
+Run everything with one command:
+
+```bash
+make setup
+```
+
+This will:
+1. Build the Docker image for the Next.js app.
+2. Start the PostgreSQL container.
+3. Wait for PostgreSQL to be healthy.
+4. Start the app container.
+5. Run `prisma migrate deploy` to apply migrations.
+6. Run `prisma db seed` to seed the admin user and sample products.
+
+After the command completes, the API is available at:
+
+```
+http://localhost:3000
+```
+
+PostgreSQL is available at:
+
+```
+localhost:5432
+```
+
+### Useful Make Commands
+
+| Command | Description |
+|---------|-------------|
+| `make setup` | Build and start everything from scratch |
+| `make up` | Start existing containers |
+| `make down` | Stop containers |
+| `make logs` | Follow container logs |
+| `make clean` | Remove containers, volumes, and images |
+| `make shell` | Open shell inside the app container |
+| `make migrate` | Run `prisma migrate dev` inside the container |
+| `make seed` | Run `prisma db seed` inside the container |
+| `make status` | Check Prisma migration status |
+| `make rebuild` | Rebuild and restart containers |
+
+### Docker Notes
+
+- The app uses Next.js standalone output for smaller production image.
+- PostgreSQL data is persisted in a Docker volume named `postgres_data`.
+- Environment variables for Docker are defined in `docker-compose.yml`.
+- For production deployment, change `JWT_SECRET` to a strong random value in `docker-compose.yml` or use a secrets manager.
+- The in-memory rate limiter is shared per container. For multi-container deployments, use Redis-based rate limiting.
 
 ## Test Using Postman
 
